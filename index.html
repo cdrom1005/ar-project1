@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -6,20 +6,12 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
       body { margin: 0; overflow: hidden; }
-      /* 確保相機畫面鋪滿全螢幕 */
-      .a-canvas { width: 100% !important; height: 100% !important; }
     </style>
   </head>
   <body>
-    <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; uiScanning: yes;" 
-      color-space="sRGB" 
-      renderer="colorManagement: true, physicallyCorrectLights" 
-      vr-mode-ui="enabled: false" 
-      device-orientation-permission-ui="enabled: false">
-      
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
       <a-assets>
-        <video id="arVideo" src="./your_video.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline muted></video>
+        <video id="arVideo" src="./video.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline muted></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -32,19 +24,19 @@
     <script>
       const video = document.querySelector("#arVideo");
       const targetEl = document.querySelector('#target');
-
-      // 偵測到目標：播放影片，並嘗試取消靜音
+      
+      // 偵測到圖：自動播放並嘗試取消靜音
       targetEl.addEventListener("targetFound", () => {
-        video.muted = false; // 部分手機仍會擋住有聲音的自動播放，若沒聲音請手動點擊螢幕
+        video.muted = false;
         video.play();
       });
 
-      // 目標消失：暫停
+      // 圖離開：暫停
       targetEl.addEventListener("targetLost", () => {
         video.pause();
       });
 
-      // 針對部分手機的安全政策：點擊畫面任何地方即可開啟聲音
+      // 備用機制：點擊螢幕開啟聲音
       window.addEventListener("click", () => {
         video.muted = false;
         video.play();
@@ -52,4 +44,3 @@
     </script>
   </body>
 </html>
-
