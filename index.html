@@ -10,97 +10,69 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); color: white;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; font-family: -apple-system, system-ui, sans-serif;
+            z-index: 10000; font-family: sans-serif;
         }
-        #start-btn {
-            padding: 16px 40px; font-size: 20px; font-weight: bold;
-            background: #007AFF; color: white; border: none; border-radius: 12px;
-            cursor: pointer; -webkit-tap-highlight-color: transparent;
-        }
-        #status { margin-top: 20px; font-size: 14px; color: #888; }
+        #btn { padding: 15px 40px; font-size: 20px; background: #007AFF; color: white; border: none; border-radius: 12px; }
+        #log { position: fixed; bottom: 10px; left: 10px; color: #0f0; font-size: 10px; z-index: 10001; pointer-events: none; }
     </style>
 </head>
 <body>
+    <div id="log">系統日誌準備中...</div>
     <div id="overlay">
-        <h2>AR 影片啟動器</h2>
-        <button id="start-btn">點擊進入體驗</button>
-        <div id="status">正在檢查檔案...</div>
+        <h2>AR 影片最後測試</h2>
+        <button id="btn">點擊啟動 (解鎖影片)</button>
     </div>
 
     <a-scene 
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes; filterMinCF:0.001; filterBeta: 0.01;" 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes;" 
         embedded color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
+        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
         
         <a-assets>
-            <video id="arVideo" 
-                   src="./your_video.mp4" 
-                   preload="auto" 
-                   loop="true" 
-                   crossorigin="anonymous" 
-                   webkit-playsinline 
-                   playsinline 
-                   muted>
-            </video>
+            <video id="v" src="your_video.mp4" preload="auto" loop playsinline webkit-playsinline muted crossorigin="anonymous"></video>
         </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity id="target" mindar-image-target="targetIndex: 0">
-            <a-video id="video-obj" src="#arVideo" width="1" height="0.56" position="0 0 0.01"></a-video>
+        <a-entity id="t" mindar-image-target="targetIndex: 0">
+            <a-video src="#v" width="1" height="0.56" position="0 0 0.01"></a-video>
         </a-entity>
     </a-scene>
 
     <script>
-        const video = document.getElementById('arVideo');
-        const startBtn = document.getElementById('start-btn');
-        const overlay = document.getElementById('overlay');
-        const status = document.getElementById('status');
-        const sceneEl = document.querySelector('a-scene');
-
-        // 監控影片載入狀態
-        video.addEventListener('loadedmetadata', () => {
-            status.innerText = "影片已就緒，請點擊開始";
-        });
-
-        startBtn.addEventListener('click', function() {
-            // 1. 隱藏 UI
-            overlay.style.display = 'none';
+        const v = document.getElementById('v');
+        const log = (t) => document.getElementById('log').innerText += '\n' + t;
+        
+        document.getElementById('btn').onclick = () => {
+            document.getElementById('overlay').style.display = 'none';
+            log("嘗試解鎖影片...");
             
-            // 2. 啟動 AR 系統
-            sceneEl.systems['mindar-image-system'].start();
-            
-            // 3. 強制影片播放與暫停 (解鎖 iOS 限制)
-            video.load(); // 重新載入確保路徑正確
-            video.play().then(() => {
-                video.pause();
-                console.log("Video unlocked successfully");
-            }).catch(e => {
-                console.error("Video unlock failed:", e);
+            // 強制觸發載入
+            v.load(); 
+            v.play().then(() => {
+                v.pause();
+                log("影片解鎖成功");
+            }).catch(e => log("解鎖失敗: " + e.message));
+
+            document.querySelector('a-scene').systems['mindar-image-system'].start();
+        };
+
+        const t = document.getElementById('t');
+        t.addEventListener("targetFound", () => {
+            log("🎯 抓到目標！");
+            v.muted = false; // 嘗試開啟聲音
+            v.play().catch(() => {
+                log("自動播放被擋，改靜音播放");
+                v.muted = true;
+                v.play();
             });
         });
 
-        const targetEl = document.getElementById('target');
+        t.addEventListener("targetLost", () => v.pause());
         
-        targetEl.addEventListener("targetFound", () => {
-            console.log("Found Target");
-            // 發現時嘗試取消靜音並播放
-            video.muted = false;
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log("Auto-play failed, playing muted.");
-                    video.muted = true;
-                    video.play();
-                });
-            }
-        });
-
-        targetEl.addEventListener("targetLost", () => {
-            video.pause();
-        });
+        // 萬一黑屏，點擊螢幕強制重播
+        window.onclick = () => { if(!v.paused) v.play(); };
     </script>
 </body>
 </html>
