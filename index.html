@@ -6,33 +6,20 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
       body { margin: 0; overflow: hidden; }
-      #overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.8); color: white;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        z-index: 999; font-family: sans-serif;
-      }
-      button {
-        padding: 15px 30px; font-size: 18px; cursor: pointer;
-        background: #28a745; color: white; border: none; border-radius: 5px;
-      }
+      /* 確保相機畫面鋪滿全螢幕 */
+      .a-canvas { width: 100% !important; height: 100% !important; }
     </style>
   </head>
   <body>
-
-    <div id="overlay">
-      <button id="start-btn">開啟 AR 體驗</button>
-    </div>
-
     <a-scene 
-      mindar-image="imageTargetSrc: targets.mind; autoStart: false;" 
-      embedded color-space="sRGB" 
+      mindar-image="imageTargetSrc: ./targets.mind; uiScanning: yes;" 
+      color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
       
       <a-assets>
-        <video id="arVideo" src="video.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline muted></video>
+        <video id="arVideo" src="./your_video.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline muted></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -43,25 +30,24 @@
     </a-scene>
 
     <script>
-      const startBtn = document.querySelector("#start-btn");
-      const sceneEl = document.querySelector('a-scene');
       const video = document.querySelector("#arVideo");
-
-      startBtn.addEventListener('click', () => {
-        // 啟動 AR 系統
-        sceneEl.systems['mindar-image-system'].start();
-        document.querySelector("#overlay").style.display = 'none';
-        video.play();
-        video.pause();
-      });
-
       const targetEl = document.querySelector('#target');
+
+      // 偵測到目標：播放影片，並嘗試取消靜音
       targetEl.addEventListener("targetFound", () => {
-        video.muted = false;
+        video.muted = false; // 部分手機仍會擋住有聲音的自動播放，若沒聲音請手動點擊螢幕
         video.play();
       });
+
+      // 目標消失：暫停
       targetEl.addEventListener("targetLost", () => {
         video.pause();
+      });
+
+      // 針對部分手機的安全政策：點擊畫面任何地方即可開啟聲音
+      window.addEventListener("click", () => {
+        video.muted = false;
+        video.play();
       });
     </script>
   </body>
