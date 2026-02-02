@@ -5,30 +5,14 @@
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; }
-      /* 啟動按鈕：解決影片播不出來的關鍵 */
-      #ui-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.8); color: white;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        z-index: 10000;
-      }
-      #start-btn {
-        padding: 15px 40px; font-size: 20px; background: #FF5722;
-        color: white; border: none; border-radius: 50px; cursor: pointer;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-      }
+      body { margin: 0; overflow: hidden; }
+      /* 確保相機畫面鋪滿全螢幕 */
+      .a-canvas { width: 100% !important; height: 100% !important; }
     </style>
   </head>
   <body>
-    <div id="ui-overlay">
-      <h2>AR 影片準備就緒</h2>
-      <button id="start-btn">點擊開始體驗</button>
-      <p style="margin-top:15px; font-size:14px; color:#bbb;">開啟後請對準辨識圖</p>
-    </div>
-
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes;" 
+      mindar-image="imageTargetSrc: ./targets.mind; uiScanning: yes;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -41,44 +25,29 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target" mindar-image-target="targetIndex: 0">
-        <a-video id="video-screen" src="#arVideo" width="1" height="0.56" position="0 0 0"></a-video>
+        <a-video src="#arVideo" width="1" height="0.56" position="0 0 0"></a-video>
       </a-entity>
     </a-scene>
 
     <script>
-      const startBtn = document.querySelector("#start-btn");
-      const uiOverlay = document.querySelector("#ui-overlay");
       const video = document.querySelector("#arVideo");
-      const sceneEl = document.querySelector('a-scene');
-
-      // 點擊按鈕才正式「啟動」一切
-      startBtn.addEventListener('click', () => {
-        uiOverlay.style.display = 'none';
-        
-        // 1. 啟動 AR 引擎
-        sceneEl.systems['mindar-image-system'].start();
-        
-        // 2. 預熱影片（先播再停），這是為了騙過瀏覽器
-        video.play().then(() => {
-          video.pause();
-          console.log("影片預熱成功");
-        }).catch(err => {
-          console.log("影片預熱失敗:", err);
-        });
-      });
-
       const targetEl = document.querySelector('#target');
-      
-      // 偵測到目標時
+
+      // 偵測到目標：播放影片，並嘗試取消靜音
       targetEl.addEventListener("targetFound", () => {
-        console.log("🎯 抓到圖了！播放影片");
-        video.muted = false; // 取消靜音
+        video.muted = false; // 部分手機仍會擋住有聲音的自動播放，若沒聲音請手動點擊螢幕
         video.play();
       });
 
-      // 目標消失時
+      // 目標消失：暫停
       targetEl.addEventListener("targetLost", () => {
         video.pause();
+      });
+
+      // 針對部分手機的安全政策：點擊畫面任何地方即可開啟聲音
+      window.addEventListener("click", () => {
+        video.muted = false;
+        video.play();
       });
     </script>
   </body>
