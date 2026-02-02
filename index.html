@@ -1,74 +1,118 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-      body { margin: 0; overflow: hidden; background: #000; }
-      /* 確保畫面填滿 */
-      .a-canvas { width: 100% !important; height: 100% !important; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        
+        /* 1. 載入遮罩：讓使用者知道還在跑 */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10000;
+            transition: opacity 0.5s;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db; border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 2. 點擊按鈕：確保影片能啟動 */
+        #start-btn {
+            margin-top: 20px; padding: 12px 30px; background: #3498db;
+            color: white; border: none; border-radius: 25px; display: none; /* 初始隱藏，載入完才出現 */
+            cursor: pointer; font-size: 16px;
+        }
+
+        /* 3. 掃描框：提示 USER 這裡要掃 */
+        #scanning-guide {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 70vw; height: 70vw; border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 10px; display: none; z-index: 9999; pointer-events: none;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p style="color:white; margin-top:15px;" id="loading-text">正在下載 AR 素材...</p>
+        <button id="start-btn">開始掃描</button>
+    </div>
+
+    <div id="scanning-guide"></div>
+
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; uiScanning: yes;" 
-      color-space="sRGB" 
-      renderer="antialias: true; colorManagement: true; sortObjects: true; precision: highp;" 
-      vr-mode-ui="enabled: false" 
-      device-orientation-permission-ui="enabled: false">
-      
-      <a-assets>
-        <video id="arVideo" 
-               src="./your_video.mp4" 
-               preload="auto" 
-               loop="true" 
-               crossorigin="anonymous" 
-               webkit-playsinline 
-               playsinline 
-               muted>
-        </video>
-      </a-assets>
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: no;" 
+        renderer="antialias: true; precision: highp;" 
+        color-space="sRGB" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <video id="arVideo" src="./your_video.mp4" 
+                   preload="auto" loop="true" crossorigin="anonymous" 
+                   webkit-playsinline playsinline muted>
+            </video>
+        </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity id="target" mindar-image-target="targetIndex: 0">
-        <a-video id="videoEntity" src="#arVideo" width="1" height="1" position="0 0 0"></a-video>
-      </a-entity>
+        <a-entity id="target" mindar-image-target="targetIndex: 0">
+            <a-video id="arVideoEntity" src="#arVideo" width="1" height="1" position="0 0 0"></a-video>
+        </a-entity>
     </a-scene>
 
     <script>
-      const video = document.querySelector("#arVideo");
-      const videoEntity = document.querySelector("#videoEntity");
-      const targetEl = document.querySelector('#target');
+        const video = document.querySelector("#arVideo");
+        const videoEntity = document.querySelector("#arVideoEntity");
+        const loadingOverlay = document.querySelector("#loading-overlay");
+        const loadingText = document.querySelector("#loading-text");
+        const startBtn = document.querySelector("#start-btn");
+        const scanningGuide = document.querySelector("#scanning-guide");
+        const sceneEl = document.querySelector('a-scene');
 
-      // --- 自動比例調整邏輯 ---
-      video.addEventListener('loadedmetadata', () => {
-        // 計算影片真實比例
-        const w = video.videoWidth;
-        const h = video.videoHeight;
-        const aspect = h / w;
-        
-        // 以寬度為 1 為基準，動態調整高度
-        videoEntity.setAttribute('height', aspect);
-        console.log(`影片比例已調整為: 1 : ${aspect}`);
-      });
+        // 當影片元數據載入後，調整比例
+        video.addEventListener('loadedmetadata', () => {
+            const aspect = video.videoHeight / video.videoWidth;
+            videoEntity.setAttribute('height', aspect);
+            // 載入完成，顯示開始按鈕
+            document.querySelector(".spinner").style.display = "none";
+            loadingText.innerText = "資源準備就緒！";
+            startBtn.style.display = "block";
+        });
 
-      // --- 播放邏輯 ---
-      targetEl.addEventListener("targetFound", () => {
-        video.muted = false; 
-        video.play();
-      });
+        // 按下按鈕才啟動相機
+        startBtn.addEventListener('click', () => {
+            loadingOverlay.style.opacity = "0";
+            setTimeout(() => { 
+                loadingOverlay.style.display = "none"; 
+                scanningGuide.style.display = "block"; // 顯示掃描框
+            }, 500);
+            
+            sceneEl.systems['mindar-image-system'].start();
+            video.play(); video.pause(); // 預熱影片
+        });
 
-      targetEl.addEventListener("targetLost", () => {
-        video.pause();
-      });
+        const targetEl = document.querySelector('#target');
+        targetEl.addEventListener("targetFound", () => {
+            scanningGuide.style.display = "none"; // 抓到圖就隱藏掃描框
+            video.muted = false;
+            video.play();
+        });
 
-      // 針對 iOS/Android 觸發聲音
-      window.addEventListener("click", () => {
-        video.muted = false;
-        video.play();
-      });
+        targetEl.addEventListener("targetLost", () => {
+            scanningGuide.style.display = "block"; // 弄丟圖就重新顯示掃描框
+            video.pause();
+        });
+
+        // 點擊畫面確保聲音啟動
+        window.addEventListener("click", () => {
+            video.muted = false;
+            video.play();
+        });
     </script>
-  </body>
+</body>
 </html>
