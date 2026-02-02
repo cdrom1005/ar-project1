@@ -1,109 +1,85 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
-        /* 1. 解決畫面一半的問題：強制全螢幕 */
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
-        
-        /* 2. 讓啟動按鈕浮在相機上方，不影響畫面尺寸 */
-        #ui-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); color: white;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; font-family: -apple-system, sans-serif;
-        }
-        #start-btn {
-            padding: 18px 45px; font-size: 20px; font-weight: bold;
-            background: #007AFF; color: white; border: none; border-radius: 15px;
-            cursor: pointer; box-shadow: 0 4px 20px rgba(0,122,255,0.4);
-        }
-        /* 偵錯日誌改為透明浮層，不擋畫面 */
-        #debug-log {
-            position: fixed; bottom: 10px; left: 10px; right: 10px;
-            background: rgba(0,0,0,0.5); color: #00ff00; font-size: 10px;
-            max-height: 80px; overflow-y: auto; pointer-events: none; z-index: 9998;
-        }
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      /* 啟動按鈕：解決影片播不出來的關鍵 */
+      #ui-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8); color: white;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        z-index: 10000;
+      }
+      #start-btn {
+        padding: 15px 40px; font-size: 20px; background: #FF5722;
+        color: white; border: none; border-radius: 50px; cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="ui-overlay">
-        <h2>AR 體驗準備就緒</h2>
-        <button id="start-btn">點擊開啟相機</button>
-        <p style="margin-top:15px; color:#aaa;">請確保使用 Safari 開啟</p>
+      <h2>AR 影片準備就緒</h2>
+      <button id="start-btn">點擊開始體驗</button>
+      <p style="margin-top:15px; font-size:14px; color:#bbb;">開啟後請對準辨識圖</p>
     </div>
 
-    <div id="debug-log">系統初始化中...<br></div>
-
     <a-scene 
-        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes; filterMinCF:0.001; filterBeta: 0.01;" 
-        embedded color-space="sRGB" 
-        renderer="colorManagement: true, physicallyCorrectLights" 
-        vr-mode-ui="enabled: false" 
-        device-orientation-permission-ui="enabled: false">
-        
-        <a-assets>
-            <video id="arVideo" 
-                   src="./your_video.mp4" 
-                   preload="auto" 
-                   loop="true" 
-                   crossorigin="anonymous" 
-                   webkit-playsinline 
-                   playsinline 
-                   muted>
-            </video>
-        </a-assets>
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: yes;" 
+      color-space="sRGB" 
+      renderer="colorManagement: true, physicallyCorrectLights" 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
+      
+      <a-assets>
+        <video id="arVideo" src="./your_video.mp4" preload="auto" loop="true" crossorigin="anonymous" playsinline muted></video>
+      </a-assets>
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity id="target" mindar-image-target="targetIndex: 0">
-            <a-video src="#arVideo" width="1" height="0.56" position="0 0 0.02"></a-video>
-        </a-entity>
+      <a-entity id="target" mindar-image-target="targetIndex: 0">
+        <a-video id="video-screen" src="#arVideo" width="1" height="0.56" position="0 0 0"></a-video>
+      </a-entity>
     </a-scene>
 
     <script>
-        const log = (t) => { document.getElementById('debug-log').innerHTML += t + "<br>"; };
-        const video = document.getElementById('arVideo');
-        const sceneEl = document.querySelector('a-scene');
-        const startBtn = document.getElementById('start-btn');
+      const startBtn = document.querySelector("#start-btn");
+      const uiOverlay = document.querySelector("#ui-overlay");
+      const video = document.querySelector("#arVideo");
+      const sceneEl = document.querySelector('a-scene');
 
-        startBtn.addEventListener('click', () => {
-            document.getElementById('ui-overlay').style.display = 'none';
-            log("嘗試解鎖影片...");
-            
-            // 重要：iOS 必須在使用者點擊時「load」一次影片
-            video.load();
-            video.play().then(() => {
-                video.pause();
-                log("影片解鎖成功");
-                // 啟動 AR
-                sceneEl.systems['mindar-image-system'].start();
-            }).catch(e => {
-                log("解鎖失敗: " + e.message);
-                sceneEl.systems['mindar-image-system'].start();
-            });
+      // 點擊按鈕才正式「啟動」一切
+      startBtn.addEventListener('click', () => {
+        uiOverlay.style.display = 'none';
+        
+        // 1. 啟動 AR 引擎
+        sceneEl.systems['mindar-image-system'].start();
+        
+        // 2. 預熱影片（先播再停），這是為了騙過瀏覽器
+        video.play().then(() => {
+          video.pause();
+          console.log("影片預熱成功");
+        }).catch(err => {
+          console.log("影片預熱失敗:", err);
         });
+      });
 
-        const targetEl = document.getElementById('target');
-        targetEl.addEventListener("targetFound", () => {
-            log("🎯 抓到目標，啟動播放");
-            video.muted = false;
-            // 處理 iOS 可能的播放失敗
-            const p = video.play();
-            if (p !== undefined) {
-                p.catch(() => {
-                    log("警告：自動播放被擋，靜音播放");
-                    video.muted = true;
-                    video.play();
-                });
-            }
-        });
+      const targetEl = document.querySelector('#target');
+      
+      // 偵測到目標時
+      targetEl.addEventListener("targetFound", () => {
+        console.log("🎯 抓到圖了！播放影片");
+        video.muted = false; // 取消靜音
+        video.play();
+      });
 
-        targetEl.addEventListener("targetLost", () => {
-            video.pause();
-        });
+      // 目標消失時
+      targetEl.addEventListener("targetLost", () => {
+        video.pause();
+      });
     </script>
-</body>
+  </body>
 </html>
